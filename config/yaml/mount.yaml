@@ -1,0 +1,18 @@
+- hosts: '{{ target }}'
+  tasks:
+
+# Mount sysel
+    - name: Mount sysel
+      mount: name=/sysel
+             src=sysel:/export/nfs
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted
+
+# Mount jenkins
+    - name: Mount sysel
+      mount: name=/JENKINS
+             src=jenkins:/mnt/data/ftp
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted

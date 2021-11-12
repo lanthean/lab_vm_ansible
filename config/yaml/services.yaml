@@ -1,0 +1,41 @@
+- hosts: '{{ target }}'
+  tasks:
+
+# Start portmap service
+    - name: Start portmap service
+      service: name=portmap
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "5")
+
+# Start portmap service
+    - name: Start rpcbind service
+      service: name=rpcbind
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7") or
+            (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+# Enable services
+    - name: enable rpcbind
+      service: 
+        name: 'rpcbind'
+        enabled: yes
+        state: started
+        daemon_reload: yes
+    - name: enable nfs-server
+      service: 
+        name: 'nfs-server'
+        enabled: yes
+        state: started
+        daemon_reload: yes
+    - name: enable nfs-lock
+      service: 
+        name: 'nfs-lock'
+        enabled: yes
+        state: started
+        daemon_reload: yes
+    - name: enable nfs-idmap
+      service: 
+        name: 'nfs-idmap'
+        enabled: yes
+        state: started
+        daemon_reload: yes

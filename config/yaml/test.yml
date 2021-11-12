@@ -1,0 +1,10 @@
+# set host and user
+- hosts: '{{ target }}'
+  tasks:
+# Prepare tools repository
+    - name: Prepare tools repository
+      git: name=ssh://git@at.acision.com:7999/~andell/andell_tools.git
+           dest=/git/andell_tools
+           key_file=/root/.ssh/stashkey
+           accept_hostkey=True
+           version=dev-tools

@@ -1,0 +1,82 @@
+- hosts: '{{ target }}'
+  tasks:
+
+# # source .bashrc
+#     - name: Source .bashrc
+#       shell: source ~/.bashrc
+#       become: true
+
+# Prepare git1 repository
+    - name: Prepare git1 repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_customizations.git
+           dest=/home/git/bortelm_customizations
+           accept_hostkey=True
+           version=master
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare git2 repository
+    - name: Prepare git2 repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_customizations.git
+           dest=/home/git/bortelm_customizations2
+           accept_hostkey=True
+           version=master
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare git3 repository
+    - name: Prepare git3 repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_customizations.git
+           dest=/home/git/bortelm_customizations3
+           accept_hostkey=True
+           version=master
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare git4 repository
+    - name: Prepare git4 repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_customizations.git
+           dest=/home/git/bortelm_customizations4
+           accept_hostkey=True
+           version=master
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare release repository
+    - name: Prepare release repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/release-tools
+           accept_hostkey=True
+           version=release-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+    - name: Create symbolic link /opt/cus/release-tools/run.sh -> /home/releases/release
+      file:
+        src: /opt/cus/release-tools/run.sh
+        dest: "/home/releases/release"
+        state: link
+
+# Prepare h2s repository
+    - name: Prepare h2s repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/h2s-tools
+           accept_hostkey=True
+           version=h2s-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+    - name: Create symbolic link /opt/cus/h2s-tools/h2s.sh -> /home/h2s/h2s
+      file:
+        src: /opt/cus/h2s-tools/h2s.sh
+        dest: "/home/h2s/h2s"
+        state: link
+
+# Prepare gbg-core
+    - name: Prepare gbg-core repo
+      git: name=ssh://git@bb.mavenir.com:7999/cus/gbg-core.git
+           dest=/home/git/gbg-core
+           accept_hostkey=True
+           version=CUS-1.0
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare tools repository
+    - name: Prepare tools repository
+      git: name=ssh://git@bb.mavenir.com:7999/cus/tools.git
+           dest=/home/git/tools
+           accept_hostkey=True
+           version=dev-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+

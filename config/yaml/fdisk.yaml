@@ -1,0 +1,19 @@
+- hosts: '{{ target }}'
+  tasks:
+
+- name: partition new disk
+  shell: echo -e "n\np\n\n\n\nw" | sudo fdisk /dev/vda
+  args:
+    executable: /bin/bash
+
+- name: partprobe
+  raw: partprobe
+
+- name: vgextend
+  raw: vgextend lvm01 /dev/vda3
+
+- name: lvextend 30G
+  raw: lvextend -L30G /dev/lvm01/home.vol
+
+- name: xfs_growfs
+  raw: xfs_growfs /dev/mapper/lvm01-home.vol

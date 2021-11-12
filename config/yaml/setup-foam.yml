@@ -1,0 +1,90 @@
+# set host and user
+- hosts: '{{ target }}'
+  tasks:
+
+# remount tmp as exec (NGP 7.2 and higher)
+    - name: Remount /tmp as exec (Only ngp 7.*)
+      raw: mount -o remount,exec /tmp
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7")
+
+# install packages
+    - name: Install additional packages
+      yum: name=tmux,git,bash-completion,nfs-utils,rpm-build,python-nose,java state=latest
+
+# copy env files
+    - name: Copy environment file
+      synchronize: src={{ item.0 }} dest={{ item.1 }}
+      with_together:
+        - [ .bashrc, .git-prompt.sh, ~/.vimrc, ~/.gitconfig, ~/.git-completion.bash, ~/.tmux.conf ]
+        - [ ~/, ~/, ~/, ~/, ~/ , ~/ ]
+
+# copy ssh key
+    - name: Copy ssh key
+      copy: src=~/.ssh/stashkey dest=~/.ssh/stashkey mode=600
+
+# change /etc/hosts
+    - name: Add standard hosts
+      blockinfile:
+        dest: /etc/hosts
+        block: |
+          127.0.0.1 bs01.my.org
+          127.0.0.1 bs02.my.org
+          127.0.0.1 bs03.my.org
+          127.0.0.1 bs04.my.org
+          127.0.0.1 bs05.my.org
+          127.0.0.1 bs06.my.org
+          127.0.0.1 ldap01.my.org
+          127.0.0.1 ldap02.my.org
+          127.0.0.1 afg01.my.org
+          127.0.0.1 smsc01.my.org
+          127.0.0.1 mplus01.my.org
+          127.0.0.1 mmsc01.my.org
+          127.0.0.1 rttp1.example.com
+          127.0.0.1 diameter.example.com
+          10.230.10.117  build-machine
+
+# source .bashrc
+#    - name: Source .bashrc
+#      shell: . .bashrc
+#      become: true
+
+
+
+# Add stashkey identity
+    - name: Add stahskey identity
+      blockinfile:
+          dest: /root/.ssh/config
+          create: True
+          block: |
+              Host at.acision.com
+                Hostname 10.33.179.140
+                StrictHostKeyChecking no
+                User git
+                IdentityFile /root/.ssh/stashkey
+
+
+## Add acision to known_hosts
+#    - name: Add acision to known_hosts
+#      lineinfile: dest=~/.ssh/known_hosts
+#                  regexp=^[{{ item.host }}]
+#                  line={{ item.line }}
+#                  create=True
+#      with_items:
+#        - { host: "at.acision.com", line: "at.acision.com,10.33.161.145 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC3XaqFEU0OFdMHc61JOmkWhdufNzkqFpXiIQOL6Y6V6nEp5iM9CFxm4iEcQnfP146d9KS4BV3EPq1O485DhXvr1+1/HOPwPzY15iSXjyQTNfA+yAov3r1SIBIkmAETRLj6+iE/TdjLSMVEhP7RGONmJgxXpysWdudJVitH3xA2gikvJi9C4FTH5OpyYsXT3U3g096Dp8079hsVXS/20fyWIrLflq3KRzknqhqusQNI8COFr5sridNjmX17m8nT6vcG4nNa6Nl0QYx6SO+suOI1QN+VPO0f7Hdg4M3Roc5Mr605Rrq5PUeyPbc4+UvJ0Do5bm1Er/Rb+KlfcaNVx++v" }
+
+
+
+# Start portmap service
+    - name: Start portmap service
+      service: name=portmap
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "5")
+
+# Start portmap service
+    - name: Start rpcbind service
+      service: name=rpcbind
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7") or
+            (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+

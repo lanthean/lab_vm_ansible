@@ -1,0 +1,28 @@
+- hosts: '{{ target }}'
+  tasks:
+
+# # source .bashrc
+#     - name: Source .bashrc
+#       shell: source ~/.bashrc
+#       become: true
+
+# Make dev-tools
+    - name: Make dev-tools
+      make: chdir=/home/git/tools
+            target=all
+
+# Make dev-tools RPM
+    - name: Make dev-tools RPM
+      make: chdir=/home/git/tools
+            target=rpm
+
+# Install dev-tools RPM
+    - name: Remove dev-tools RPM
+      raw: yum remove -y cus_dev_tools
+    - name: Install dev-tools RPM
+      raw: yum install -y --nogpgcheck /home/git/tools/*.rpm
+
+# Clean after make
+    - name: Clean after make
+      make: chdir=/home/git/tools
+            target=clean

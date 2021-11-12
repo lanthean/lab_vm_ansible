@@ -1,0 +1,78 @@
+# set host and user
+- hosts: '{{ target }}'
+  tasks:
+
+# Prepare release repository
+    - name: Prepare release repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/release-tools
+           accept_hostkey=True
+           version=release-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare h2s repository
+    - name: Prepare h2s repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/h2s-tools
+           accept_hostkey=True
+           version=h2s-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare tools repository
+    - name: Prepare tools repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/git/bortelm_tools
+           accept_hostkey=True
+           version=dev-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Make dev-tools
+    - name: Make dev-tools
+      make: chdir=/git/bortelm_tools
+            target=all
+
+# Make dev-tools RPM
+    - name: Make dev-tools RPM
+      make: chdir=/git/bortelm_tools
+            target=rpm
+
+# Install dev-tools RPM
+    - name: Remove dev-tools RPM
+      raw: yum remove -y cus_dev_tools
+    - name: Install dev-tools RPM
+      raw: yum install -y --nogpgcheck /git/bortelm_tools/*.rpm
+
+
+# Clean after make
+    - name: Clean after make
+      make: chdir=/git/bortelm_tools
+            target=clean
+
+# Start portmap service
+    - name: Start portmap service
+      service: name=portmap
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "5")
+
+# Start portmap service
+    - name: Start rpcbind service
+      service: name=rpcbind
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7") or
+            (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+# Mount sysel
+    - name: Mount sysel
+      mount: name=/sysel
+             src=sysel:/export/nfs
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted
+
+# Mount jenkins
+    - name: Mount sysel
+      mount: name=/JENKINS
+             src=jenkins:/mnt/data/ftp
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted

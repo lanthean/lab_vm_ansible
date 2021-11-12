@@ -1,0 +1,10 @@
+[Virtual-machines]
+#10.230.15.244 ansible_user=root
+#10.230.6.233 ansible_user=root
+#10.230.10.164 ansible_user=root
+#10.230.14.239 ansible_user=root
+
+10.230.10.105 ansible_user=root
+
+
+[ngp2_2]

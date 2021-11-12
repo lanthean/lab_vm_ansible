@@ -1,0 +1,11 @@
+# Install python-simplejson
+- hosts: ngp2_2
+  gather_facts: False
+  tasks:
+    - name: Enable epel repo (Only ngp 2.2)
+      raw: sed -i "/^enabled=*$/enabled=1" /etc/yum.repos.d/epel.repo 
+
+    - name: Install python-simplejson
+      raw: yum install -y python-simplejson  
+
+

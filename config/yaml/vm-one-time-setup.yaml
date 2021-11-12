@@ -1,0 +1,141 @@
+- hosts: '{{ target }}'
+  tasks:
+
+# extend /home and grow xfs
+    - name: Extend LV /dev/lvm01/home.vol
+      raw: lvextend -l+100%FREE /dev/lvm01/home.vol
+    - name: xfs_growfs
+      raw: xfs_growfs /dev/mapper/lvm01-home.vol 
+
+# prepare directories and links
+    - name: Prepare /home/git
+      file:
+        path: /home/git
+        state: directory
+        owner: 501
+        group: 20
+    - name: Prepare /home/h2s
+      file:
+        path: /home/h2s
+        state: directory
+    - name: Prepare /home/releases
+      file:
+        path: /home/releases
+        state: directory
+
+# prepare git link
+    - name: Create symbolic link /home/git -> /git
+      file:
+        src: /home/git
+        dest: "/git"
+        state: link
+
+# enable epel repo
+    - name: Enable epel repo (Only ngp 3.1)
+      blockinfile:
+        dest: /etc/yum.repos.d/epel.repo
+        create: True
+        block: |
+          [EPEL]
+          enabled=1
+          name=Repository for holding EPEL 6 software packages
+          baseurl=https://redhatdist.cz.intinfra.com:6809/yum/epel/6
+          gpgcheck=0
+          sslverify=0
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+# remount tmp as exec (NGP 7.2 and higher)
+    - name: Remount /tmp as exec (Only ngp 7.*)
+      raw: mount -o remount,exec /tmp
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7")
+
+# copy dotfiles/root
+    - name: Copy dotfiles/root
+      synchronize: src=%RPATH%/dotfiles/root/ dest=/root/ owner=no
+
+# copy dotfiles/etc
+    - name: Copy dotfiles/etc
+      synchronize: src=%RPATH%/dotfiles/etc/ dest=/etc/ owner=no
+
+# copy ssh key
+    - name: Copy ssh key
+      copy: src=%RPATH%/dotfiles/ssh/id_rsa_vm dest=/root/.ssh/id_rsa_vm mode=600
+
+# copy ssh key
+    - name: Copy ssh pub key
+      copy: src=%RPATH%/dotfiles/ssh/id_rsa_vm.pub dest=/root/.ssh/id_rsa_vm.pub mode=600
+
+# copy ssh config
+    - name: Copy ssh config
+      copy: src=%RPATH%/dotfiles/ssh/config dest=/root/.ssh/config mode=640
+
+# change /etc/hosts
+    - name: Add standard hosts
+      blockinfile:
+        dest: /etc/hosts
+        block: |
+          127.0.0.1 bs01.my.org
+          127.0.0.1 bs02.my.org
+          127.0.0.1 bs03.my.org
+          127.0.0.1 bs04.my.org
+          127.0.0.1 bs05.my.org
+          127.0.0.1 bs06.my.org
+          127.0.0.1 redis.my.org
+          127.0.0.1 ldap01.my.org
+          127.0.0.1 ldap02.my.org
+          127.0.0.1 afg01.my.org
+          127.0.0.1 smsc01.my.org
+          127.0.0.1 mplus01.my.org
+          127.0.0.1 mmsc01.my.org
+          127.0.0.1 rttp1.example.com
+          127.0.0.1 diameter.example.com
+          10.230.8.6  build-machine
+
+# install packages
+    - name: Install additional packages
+      yum:
+        name: git,tmux,nfs-utils,rpm-build,gcc,make,strace,python3-devel,mc,htop,iotop,kernel-devel,ncurses-devel
+        state: latest
+        # use_backend: dnf
+        use_backend: yum
+        enablerepo: epel
+
+# install tmux 2.0
+# # # DOWNLOAD SOURCES FOR LIBEVENT AND MAKE AND INSTALL
+# # Install tmux on Centos release 6.5
+
+# # install deps
+# yum install gcc kernel-devel make ncurses-devel
+
+# # DOWNLOAD SOURCES FOR LIBEVENT AND MAKE AND INSTALL
+# curl -OL https://github.com/downloads/libevent/libevent/libevent-2.0.21-stable.tar.gz
+# tar -xvzf libevent-2.0.21-stable.tar.gz
+# cd libevent-2.0.21-stable
+# ./configure --prefix=/usr/local
+# make
+# sudo make install
+
+# # DOWNLOAD SOURCES FOR TMUX AND MAKE AND INSTALL
+# curl -OL https://github.com/tmux/tmux/releases/download/2.0/tmux-2.0.tar.gz
+# tar -xvzf tmux-2.0.tar.gz
+# cd tmux-2.0
+# LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" ./configure --prefix=/usr/local
+# make
+# sudo make install
+    - name: Install tmux 2.0 (Only ngp 7.*)
+      raw: curl -OL https://github.com/downloads/libevent/libevent/libevent-2.0.21-stable.tar.gz
+      raw: tar -xvzf libevent-2.0.21-stable.tar.gz
+      raw: pushd libevent-2.0.21-stable
+      raw: ./configure --prefix=/usr/local
+      raw: make
+      raw: sudo make install
+      raw: popd
+      raw: curl -OL https://github.com/tmux/tmux/releases/download/2.0/tmux-2.0.tar.gz
+      raw: tar -xvzf tmux-2.0.tar.gz
+      raw: pushd tmux-2.0
+      raw: LDFLAGS="-L/usr/local/lib -Wl,-rpath=/usr/local/lib" ./configure --prefix=/usr/local
+      raw: make
+      raw: sudo make install
+      raw: popd
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7")
+

@@ -1,0 +1,221 @@
+# set host and user
+- hosts: '{{ target }}'
+  tasks:
+# prepare directories and links
+    - name: Prepare /home/git
+      path: /home/git state: directory
+    - name: Prepare /home/h2s
+      path: /home/h2s state: directory
+    - name: Prepare /home/release
+      path: /home/release state: directory
+
+# prepare git link
+    - name: Create symbolic link /home/git -> /git
+      file:
+        src: /home/git
+        dest: "/git"
+        state: link
+
+# enable epel repo
+    - name: Enable epel repo (Only ngp 3.1)
+      blockinfile:
+        dest: /etc/yum.repos.d/epel.repo
+        create: True
+        block: |
+          [EPEL]
+          enabled=1
+          name=Repository for holding EPEL 6 software packages
+          baseurl=https://redhatdist.cz.intinfra.com:6809/yum/epel/6
+          gpgcheck=0
+          sslverify=0
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+
+      #    - name: Enable epel repo (Only ngp 7.*)
+      #      lineinfile:
+      #        dest: /etc/yum.repos.d/epel.repo
+      #        regexp: ^enabled
+      #        line: enabled=1
+      #      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7")
+
+# remount tmp as exec (NGP 7.2 and higher)
+    - name: Remount /tmp as exec (Only ngp 7.*)
+      raw: mount -o remount,exec /tmp
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7")
+
+# copy dotfiles
+    - name: Copy dotfiles
+      # synchronize: src={{ item.0 }} dest={{ item.1 }}
+      # with_together:
+      #   - [ /Users/lanthean/Documents/data/work/lab_vm_setup/dotfiles/.bash*, /Users/lanthean/Documents/data/work/lab_vm_setup/dotfiles/.vim*, /Users/lanthean/Documents/data/work/lab_vm_setup/dotfiles/.gitconfig, /Users/lanthean/Documents/data/work/lab_vm_setup/dotfiles/.tmux* ]
+      #   - [ ~/, ~/, ~/, ~/ ]
+      synchronize: src=/Users/lanthean/Documents/data/work/lab_vm_setup/dotfiles/ dest=~/ owner=no
+
+# copy .ssh
+    # - name: Copy .ssh
+    #   synchronize: src=/Users/lanthean/Documents/data/work/lab_vm_setup/.ssh/ dest=~/.ssh/ owner=no
+# copy ssh key
+    - name: Copy ssh key
+      copy: src=/Users/lanthean/Documents/data/work/lab_vm_setup/.ssh/id_rsa_vm dest=~/.ssh/id_rsa_vm mode=600
+# copy ssh key
+    - name: Copy ssh pub key
+      copy: src=/Users/lanthean/Documents/data/work/lab_vm_setup/.ssh/id_rsa_vm.pub dest=~/.ssh/id_rsa_vm.pub mode=600
+
+# copy ssh config
+    - name: Copy ssh config
+      copy: src=/Users/lanthean/Documents/data/work/lab_vm_setup/.ssh/config dest=~/.ssh/config mode=640
+
+# change /etc/hosts
+    - name: Add standard hosts
+      blockinfile:
+        dest: /etc/hosts
+        block: |
+          127.0.0.1 bs01.my.org
+          127.0.0.1 bs02.my.org
+          127.0.0.1 bs03.my.org
+          127.0.0.1 bs04.my.org
+          127.0.0.1 bs05.my.org
+          127.0.0.1 bs06.my.org
+          127.0.0.1 redis.my.org
+          127.0.0.1 ldap01.my.org
+          127.0.0.1 ldap02.my.org
+          127.0.0.1 afg01.my.org
+          127.0.0.1 smsc01.my.org
+          127.0.0.1 mplus01.my.org
+          127.0.0.1 mmsc01.my.org
+          127.0.0.1 rttp1.example.com
+          127.0.0.1 diameter.example.com
+          10.230.10.117  build-machine
+
+# install packages
+    - name: Install additional packages
+      yum:
+        name: git,tmux,nfs-utils,rpm-build,gcc,python3-devel
+        # name: tmux,bash-completion,nfs-utils,rxvt-unicode-256color,rpm-build,git,pylint
+        state: latest
+        use_backend: dnf
+        enablerepo: epel
+        #yum: name=tmux,git,bash-completion,nfs-utils,rpm-build,python-nose,pylint,java state=latest
+      #yum: name=tmux,git,bash-completion,nfs-utils,rpm-build state=latest
+
+# source .bashrc
+#    - name: Source .bashrc
+#      shell: . .bashrc
+#      become: true
+
+
+
+# Add stashkey identity
+    # - name: Add BitBucket identity
+    #   blockinfile:
+    #       dest: /root/.ssh/config
+    #       create: True
+    #       block: |
+    #           Host bb.mavenir.com
+    #             Hostname 10.32.179.196
+    #             StrictHostKeyChecking no
+    #             User git
+    #             IdentityFile /root/.ssh/bbkey
+
+
+## Add acision to known_hosts
+#    - name: Add acision to known_hosts
+#      lineinfile: dest=~/.ssh/known_hosts
+#                  regexp=^[{{ item.host }}]
+#                  line={{ item.line }}
+#                  create=True
+#      with_items:
+#        - { host: "bb.acision.com", line: "bb.acision.com,10.33.161.145 ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC3XaqFEU0OFdMHc61JOmkWhdufNzkqFpXiIQOL6Y6V6nEp5iM9CFxm4iEcQnfP146d9KS4BV3EPq1O485DhXvr1+1/HOPwPzY15iSXjyQTNfA+yAov3r1SIBIkmAETRLj6+iE/TdjLSMVEhP7RGONmJgxXpysWdudJVitH3xA2gikvJi9C4FTH5OpyYsXT3U3g096Dp8079hsVXS/20fyWIrLflq3KRzknqhqusQNI8COFr5sridNjmX17m8nT6vcG4nNa6Nl0QYx6SO+suOI1QN+VPO0f7Hdg4M3Roc5Mr605Rrq5PUeyPbc4+UvJ0Do5bm1Er/Rb+KlfcaNVx++v" }
+
+# Prepare release repository
+    - name: Prepare release repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/release-tools
+           accept_hostkey=True
+           version=release-tools
+
+# Prepare h2s repository
+    - name: Prepare h2s repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/h2s-tools
+           accept_hostkey=True
+           version=h2s-tools
+
+# Prepare tools repository
+    - name: Prepare tools repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/git/bortelm_tools
+           accept_hostkey=True
+           version=dev-tools
+
+# Make dev-tools
+    - name: Make dev-tools
+      make: chdir=/git/bortelm_tools
+            target=all
+
+# Make dev-tools RPM
+    - name: Make dev-tools RPM
+      make: chdir=/git/bortelm_tools
+            target=rpm
+
+# Install dev-tools RPM
+# yum: name=/git/bortelm_tools/cus_dev_tools-1.0-99.99.B99.noarch.rpm
+#    - name: Install dev-tools RPM
+#      yum: name=/git/bortelm_tools/*.rpm
+#           state=latest
+#           disable_gpg_check=True
+    - name: Remove dev-tools RPM
+      raw: yum remove -y cus_dev_tools
+    - name: Install dev-tools RPM
+      raw: yum install -y --nogpgcheck /git/bortelm_tools/*.rpm
+
+
+# Clean after make
+    - name: Clean after make
+      make: chdir=/git/bortelm_tools
+            target=clean
+
+# Start portmap service
+    - name: Start portmap service
+      service: name=portmap
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "5")
+
+# Start portmap service
+    - name: Start rpcbind service
+      service: name=rpcbind
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7") or
+            (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+# Mount sysel
+    - name: Mount sysel
+      mount: name=/sysel
+             src=sysel:/export/nfs
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted
+
+# Mount jenkins
+    - name: Mount sysel
+      mount: name=/JENKINS
+             src=jenkins:/mnt/data/ftp
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted
+
+# Prepare cus-sop repository
+    # - name: Prepare cus-sop repository
+    #   git: name=ssh://git@bb.mavenir.com:7999/~andell/andell_cus-sop.git
+    #        dest=/git/andell_cus-sop
+
+
+# Prepare cus-plg repository
+    # - name: Prepare cus-plg repository
+    #   git: name=ssh://git@bb.mavenir.com:7999/~andell/andell_cus-plg.git
+    #        dest=/git/andell_cus-plg
+
+# Prepare gbg-core repository
+    # - name: Prepare gbg-core repository
+    #   git: name=ssh://git@bb.mavenir.com:7999/~andell/gbg-core.git
+    #        dest=/git/gbg-core

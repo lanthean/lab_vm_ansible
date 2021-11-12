@@ -1,0 +1,11 @@
+# set host and user
+- hosts: local
+  tasks:
+
+# change /etc/hosts
+    - name: Add virtual machine host
+      blockinfile:
+        dest: /etc/hosts
+        block: |
+          '{{ target }}' '{{ alias_name}}'
+        become: true

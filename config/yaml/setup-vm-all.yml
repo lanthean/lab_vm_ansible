@@ -1,0 +1,149 @@
+# set host and user
+- hosts: '{{ target }}'
+  tasks:
+
+# enable epel repo
+    - name: Enable epel repo (Only ngp 3.1)
+      blockinfile:
+        dest: /etc/yum.repos.d/epel.repo
+        create: True
+        block: |
+          [EPEL]
+          enabled=1
+          name=Repository for holding EPEL 6 software packages
+          baseurl=https://redhatdist.cz.intinfra.com:6809/yum/epel/6
+          gpgcheck=0
+          sslverify=0
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+# remount tmp as exec (NGP 7.2 and higher)
+    - name: Remount /tmp as exec (Only ngp 7.*)
+      raw: mount -o remount,exec /tmp
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7")
+
+# copy dotfiles
+    - name: Copy dotfiles
+      synchronize: src=/Users/lanthean/Documents/data/work/lab_vm_setup/dotfiles/ dest=~/ owner=no
+
+# copy ssh key
+    - name: Copy ssh key
+      copy: src=/Users/lanthean/Documents/data/work/lab_vm_setup/.ssh/id_rsa_vm dest=~/.ssh/id_rsa_vm mode=600
+
+# copy ssh key
+    - name: Copy ssh pub key
+      copy: src=/Users/lanthean/Documents/data/work/lab_vm_setup/.ssh/id_rsa_vm.pub dest=~/.ssh/id_rsa_vm.pub mode=600
+
+# copy ssh config
+    - name: Copy ssh config
+      copy: src=/Users/lanthean/Documents/data/work/lab_vm_setup/.ssh/config dest=~/.ssh/config mode=640
+
+# change /etc/hosts
+    - name: Add standard hosts
+      blockinfile:
+        dest: /etc/hosts
+        block: |
+          127.0.0.1 bs01.my.org
+          127.0.0.1 bs02.my.org
+          127.0.0.1 bs03.my.org
+          127.0.0.1 bs04.my.org
+          127.0.0.1 bs05.my.org
+          127.0.0.1 bs06.my.org
+          127.0.0.1 redis.my.org
+          127.0.0.1 ldap01.my.org
+          127.0.0.1 ldap02.my.org
+          127.0.0.1 afg01.my.org
+          127.0.0.1 smsc01.my.org
+          127.0.0.1 mplus01.my.org
+          127.0.0.1 mmsc01.my.org
+          127.0.0.1 rttp1.example.com
+          127.0.0.1 diameter.example.com
+          10.230.10.117  build-machine
+
+# install packages
+    - name: Install additional packages
+      yum:
+        name: git,tmux,nfs-utils,rpm-build,gcc,python3-devel
+        state: latest
+        use_backend: dnf
+        enablerepo: epel
+
+# source .bashrc
+    - name: Source .bashrc
+      shell: source ~/.bashrc
+      become: true
+
+# Prepare release repository
+    - name: Prepare release repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/release-tools
+           accept_hostkey=True
+           version=release-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare h2s repository
+    - name: Prepare h2s repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/opt/cus/h2s-tools
+           accept_hostkey=True
+           version=h2s-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Prepare tools repository
+    - name: Prepare tools repository
+      git: name=ssh://git@bb.mavenir.com:7999/~bortelm/bortelm_tools.git
+           dest=/git/bortelm_tools
+           accept_hostkey=True
+           version=dev-tools
+           ssh_opts="-i /root/.ssh/id_rsa_vm"
+
+# Make dev-tools
+    - name: Make dev-tools
+      make: chdir=/git/bortelm_tools
+            target=all
+
+# Make dev-tools RPM
+    - name: Make dev-tools RPM
+      make: chdir=/git/bortelm_tools
+            target=rpm
+
+# Install dev-tools RPM
+    - name: Remove dev-tools RPM
+      raw: yum remove -y cus_dev_tools
+    - name: Install dev-tools RPM
+      raw: yum install -y --nogpgcheck /git/bortelm_tools/*.rpm
+
+
+# Clean after make
+    - name: Clean after make
+      make: chdir=/git/bortelm_tools
+            target=clean
+
+# Start portmap service
+    - name: Start portmap service
+      service: name=portmap
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "5")
+
+# Start portmap service
+    - name: Start rpcbind service
+      service: name=rpcbind
+               state=started
+      when: (ansible_distribution == "RedHat" and ansible_distribution_major_version == "7") or
+            (ansible_distribution == "RedHat" and ansible_distribution_major_version == "6")
+
+# Mount sysel
+    - name: Mount sysel
+      mount: name=/sysel
+             src=sysel:/export/nfs
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted
+
+# Mount jenkins
+    - name: Mount sysel
+      mount: name=/JENKINS
+             src=jenkins:/mnt/data/ftp
+             fstype=nfs
+             opts=soft,ro,suid,tcp
+             state=mounted
+
